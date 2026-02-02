@@ -34,6 +34,17 @@
     var storyContainer = document.querySelector('#story');
     var outerScrollContainer = document.querySelector('.outerContainer');
 
+    // Scroll control helpers
+    var scrollAnimationId = null;
+    var userIsInteracting = false;
+    var interactionTimer = null;
+    function cancelScrollAnimation() {
+        if (scrollAnimationId) {
+            cancelAnimationFrame(scrollAnimationId);
+            scrollAnimationId = null;
+        }
+    }
+
     // page features setup
     setupTheme(globalTagTheme);
     var hasSave = loadSavePoint();
@@ -292,16 +303,30 @@
         var start = outerScrollContainer.scrollTop;
 
         var dist = target - start;
-        var duration = 300 + 300*dist/100;
+        // duration should scale with absolute distance but have a sensible min
+        var duration = Math.max(200, 300 + 300*Math.abs(dist)/100);
         var startTime = null;
+        cancelScrollAnimation(); // cancel any previous animation
         function step(time) {
+            // stop animation if user is interacting (prevents fighting user scroll)
+            if (userIsInteracting) {
+                cancelAnimationFrame(scrollAnimationId);
+                scrollAnimationId = null;
+                return;
+            }
+
             if( startTime == null ) startTime = time;
             var t = (time-startTime) / duration;
+            t = Math.max(0, Math.min(1, t));
             var lerp = 3*t*t - 2*t*t*t; // ease in/out
             outerScrollContainer.scrollTo(0, (1.0-lerp)*start + lerp*target);
-            if( t < 1 ) requestAnimationFrame(step);
+            if( t < 1 ) {
+                scrollAnimationId = requestAnimationFrame(step);
+            } else {
+                scrollAnimationId = null;
+            }
         }
-        requestAnimationFrame(step);
+        scrollAnimationId = requestAnimationFrame(step);
     }
 
     // The Y coordinate of the bottom end of all the story content, used
@@ -435,56 +460,129 @@
             document.body.classList.toggle("dark");
         });
 
-        // 动态生成章节导航
-        const chapterNav = document.createElement('div');
-        chapterNav.id = 'chapter-nav';
-        chapterNav.className = 'chapter-nav';
-
-        // 获取所有章节标题
-        const chapters = document.querySelectorAll('h2');
-        chapters.forEach((chapter, index) => {
-            const chapterLink = document.createElement('a');
-            chapterLink.href = `#chapter${index + 1}`;
-            chapterLink.textContent = `Chapter ${index + 1}`;
-            chapterNav.appendChild(chapterLink);
-
-            // 为章节标题添加 id
-            chapter.id = `chapter${index + 1}`;
-        });
-
-        document.body.appendChild(chapterNav);
+        // 章节导航功能已移除：原先自动生成的章节导航按钮已删除。
 
         // 添加进度条功能
         const progressBar = document.createElement('div');
         progressBar.id = 'progress-bar';
         document.body.appendChild(progressBar);
 
-        window.addEventListener('scroll', () => {
-            const scrollTop = window.scrollY;
-            const docHeight = document.body.scrollHeight;
-            const winHeight = window.innerHeight;
-            const scrollPercent = (scrollTop / (docHeight - winHeight)) * 100;
+        // Update progress bar based on the outer scroll container's scroll (throttled via rAF)
+        let scrollRaf = null;
+        function updateProgressBar() {
+            const scrollTop = outerScrollContainer.scrollTop;
+            const docHeight = outerScrollContainer.scrollHeight;
+            const winHeight = outerScrollContainer.clientHeight;
+            const denom = (docHeight - winHeight) || 1; // avoid division by zero
+            const scrollPercent = Math.max(0, Math.min(100, (scrollTop / denom) * 100));
             progressBar.style.width = scrollPercent + '%';
+            scrollRaf = null;
+        }
+        outerScrollContainer.addEventListener('scroll', () => {
+            if (scrollRaf == null) scrollRaf = requestAnimationFrame(updateProgressBar);
+        }, { passive: true });
+
+        // If user interacts (wheel/touch/pointer), cancel programmatic scrolling to avoid fighting
+        ['wheel', 'touchstart', 'touchmove', 'pointerdown'].forEach(evt => {
+            outerScrollContainer.addEventListener(evt, () => {
+                userIsInteracting = true;
+                cancelScrollAnimation();
+                clearTimeout(interactionTimer);
+                interactionTimer = setTimeout(() => { userIsInteracting = false; }, 250);
+            }, { passive: true });
         });
 
-        // 添加阅读模式切换功能
+        // 阅读模式、字体/行距控制与全屏功能
+        const controlsEl = document.getElementById('controls');
         const toggleReadingMode = () => {
             document.body.classList.toggle('reading-mode');
         };
 
-        const readingModeButton = document.createElement('button');
-        readingModeButton.textContent = 'Toggle Reading Mode';
-        readingModeButton.style.position = 'fixed';
-        readingModeButton.style.bottom = '10px';
-        readingModeButton.style.right = '10px';
-        readingModeButton.style.padding = '10px';
-        readingModeButton.style.backgroundColor = '#007BFF';
-        readingModeButton.style.color = 'white';
-        readingModeButton.style.border = 'none';
-        readingModeButton.style.borderRadius = '5px';
-        readingModeButton.style.cursor = 'pointer';
-        readingModeButton.addEventListener('click', toggleReadingMode);
-        document.body.appendChild(readingModeButton);
+        // Font and line-height controls (persisted)
+        let currentFontSize = parseInt(localStorage.getItem('fontSize') || '13', 10);
+        let currentLineHeight = parseFloat(localStorage.getItem('lineHeight') || '1.7');
+        function applyTypography() {
+            document.documentElement.style.setProperty('--content-font-size', currentFontSize+'pt');
+            document.documentElement.style.setProperty('--content-line-height', currentLineHeight);
+        }
+        applyTypography();
+
+        function changeFontSize(delta) {
+            currentFontSize = Math.max(10, Math.min(24, currentFontSize + delta));
+            localStorage.setItem('fontSize', currentFontSize);
+            applyTypography();
+        }
+        function changeLineHeight(delta) {
+            currentLineHeight = Math.max(1.1, Math.min(2.5, Math.round((currentLineHeight+delta)*100)/100));
+            localStorage.setItem('lineHeight', currentLineHeight);
+            applyTypography();
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+                document.body.classList.add('fullscreen');
+            } else {
+                document.exitFullscreen && document.exitFullscreen();
+                document.body.classList.remove('fullscreen');
+            }
+        }
+
+        if (controlsEl) {
+            const rmBtn = document.createElement('a');
+            rmBtn.href = '#';
+            rmBtn.id = 'reading-mode-toggle';
+            rmBtn.textContent = 'reading';
+            rmBtn.addEventListener('click', function(e){ e.preventDefault(); toggleReadingMode(); });
+            controlsEl.appendChild(rmBtn);
+
+            const decBtn = document.createElement('a');
+            decBtn.href = '#';
+            decBtn.id = 'font-decrease';
+            decBtn.textContent = 'A-';
+            decBtn.addEventListener('click', function(e){ e.preventDefault(); changeFontSize(-1); });
+
+            const incBtn = document.createElement('a');
+            incBtn.href = '#';
+            incBtn.id = 'font-increase';
+            incBtn.textContent = 'A+';
+            incBtn.addEventListener('click', function(e){ e.preventDefault(); changeFontSize(1); });
+
+            const lhDec = document.createElement('a');
+            lhDec.href = '#';
+            lhDec.id = 'lh-decrease';
+            lhDec.textContent = 'LH-';
+            lhDec.addEventListener('click', function(e){ e.preventDefault(); changeLineHeight(-0.1); });
+
+            const lhInc = document.createElement('a');
+            lhInc.href = '#';
+            lhInc.id = 'lh-increase';
+            lhInc.textContent = 'LH+';
+            lhInc.addEventListener('click', function(e){ e.preventDefault(); changeLineHeight(0.1); });
+
+            const fsBtn = document.createElement('a');
+            fsBtn.href = '#';
+            fsBtn.id = 'fullscreen-toggle';
+            fsBtn.textContent = 'fs';
+            fsBtn.addEventListener('click', function(e){ e.preventDefault(); toggleFullscreen(); });
+
+            controlsEl.appendChild(decBtn);
+            controlsEl.appendChild(incBtn);
+            controlsEl.appendChild(lhDec);
+            controlsEl.appendChild(lhInc);
+            controlsEl.appendChild(fsBtn);
+        }
+
+        // 高亮功能已移除：将现有的 .quoted-emphasis 元素还原为普通文本
+        function removeExistingHighlights() {
+            if (!storyContainer) return;
+            const spans = storyContainer.querySelectorAll('.quoted-emphasis');
+            spans.forEach(s => {
+                s.replaceWith(document.createTextNode(s.textContent));
+            });
+        }
+        // 立即清理页面上已存在的高亮元素，之后不再自动高亮新文本。
+        removeExistingHighlights();
     }
 
 })(storyContent);

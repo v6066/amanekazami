@@ -2,6 +2,11 @@
 /* 引入 Bootstrap */
 @import url('https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css');
 
+:root {
+    --content-font-size: 13pt;
+    --content-line-height: 1.7;
+}
+
 body {
     font-family: 'Microsoft YaHei', 'Open Sans', sans-serif; /* 使用黑体字体 */
     font-weight: bold; /* 设置字体加粗 */
@@ -120,9 +125,9 @@ h2 {
 p {
     font-family: 'Microsoft YaHei', sans-serif; /* 使用黑体字体 */
     font-weight: bold; /* 设置字体加粗 */
-    font-size: 13pt;
+    font-size: var(--content-font-size);
     color: #888;
-    line-height: 1.7em;
+    line-height: var(--content-line-height);
 }
 
 a {
@@ -403,35 +408,33 @@ h1 {
     }
 }
 
-/* 添加章节导航样式 */
-.chapter-nav {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    background-color: #007BFF;
-    color: white;
-    padding: 10px;
-    border-radius: 5px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.chapter-nav a {
-    color: white;
-    text-decoration: none;
-    margin: 5px;
-    display: block;
-}
-
-/* 添加阅读模式样式 */
+/* 添加阅读模式样式 (修改：不再包含章节导航) */
 body.reading-mode .buttons,
-body.reading-mode .chapter-nav {
+body.reading-mode #controls,
+body.reading-mode .written-in-ink {
     display: none;
 }
 
-body.reading-mode #story {
-    max-width: 800px;
+body.reading-mode #story,
+body.reading-mode .container {
+    max-width: 900px;
     margin: auto;
+    padding-top: 2em;
 }
+
+/* 在阅读模式下微调排版 */
+body.reading-mode {
+    --content-font-size: 14.5pt;
+    --content-line-height: 1.95;
+}
+
+/* 全屏阅读辅助（在使用 Fullscreen API 时效果更明显） */
+body.reading-mode.fullscreen .outerContainer {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    height: 100%; width: 100%;
+}
+
 
 /* 添加进度条样式 */
 #progress-bar {
@@ -443,3 +446,6 @@ body.reading-mode #story {
     background-color: #007BFF;
     transition: width 0.3s;
 }
+
+/* 突出高亮样式已移除：相关文本现在按原始段落样式正常显示 */
+/* 如果需要再次启用高亮，请恢复或重新实现相应的样式和脚本。 */
