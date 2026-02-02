@@ -38,6 +38,7 @@
     var scrollAnimationId = null;
     var userIsInteracting = false;
     var interactionTimer = null;
+    var controlsInitialized = false; // ensure controls/progress are only initialized once
     function cancelScrollAnimation() {
         if (scrollAnimationId) {
             cancelAnimationFrame(scrollAnimationId);
@@ -416,161 +417,134 @@
     function setupButtons(hasSave) {
 
         let rewindEl = document.getElementById("rewind");
-        if (rewindEl) rewindEl.addEventListener("click", function(event) {
-            removeAll("p");
-            removeAll("img");
-            setVisible(".header", false);
-            restart();
-        });
+        if (rewindEl && !rewindEl.dataset._init) {
+            rewindEl.addEventListener("click", function(event) {
+                removeAll("p");
+                removeAll("img");
+                setVisible(".header", false);
+                restart();
+            });
+            rewindEl.dataset._init = '1';
+        }
 
         let saveEl = document.getElementById("save");
-        if (saveEl) saveEl.addEventListener("click", function(event) {
-            try {
-                window.localStorage.setItem('save-state', savePoint);
-                document.getElementById("reload").removeAttribute("disabled");
-                window.localStorage.setItem('theme', document.body.classList.contains("dark") ? "dark" : "");
-            } catch (e) {
-                console.warn("Couldn't save state");
-            }
+        if (saveEl && !saveEl.dataset._init) {
+            saveEl.addEventListener("click", function(event) {
+                try {
+                    window.localStorage.setItem('save-state', savePoint);
+                    document.getElementById("reload").removeAttribute("disabled");
+                    window.localStorage.setItem('theme', document.body.classList.contains("dark") ? "dark" : "");
+                } catch (e) {
+                    console.warn("Couldn't save state");
+                }
 
-        });
+            });
+            saveEl.dataset._init = '1';
+        }
 
         let reloadEl = document.getElementById("reload");
         if (!hasSave) {
             reloadEl.setAttribute("disabled", "disabled");
         }
-        reloadEl.addEventListener("click", function(event) {
-            if (reloadEl.getAttribute("disabled"))
-                return;
+        if (reloadEl && !reloadEl.dataset._init) {
+            reloadEl.addEventListener("click", function(event) {
+                if (reloadEl.getAttribute("disabled"))
+                    return;
 
-            removeAll("p");
-            removeAll("img");
-            try {
-                let savedState = window.localStorage.getItem('save-state');
-                if (savedState) story.state.LoadJson(savedState);
-            } catch (e) {
-                console.debug("Couldn't load save state");
-            }
-            continueStory(true);
-        });
+                removeAll("p");
+                removeAll("img");
+                try {
+                    let savedState = window.localStorage.getItem('save-state');
+                    if (savedState) story.state.LoadJson(savedState);
+                } catch (e) {
+                    console.debug("Couldn't load save state");
+                }
+                continueStory(true);
+            });
+            reloadEl.dataset._init = '1';
+        }
 
         let themeSwitchEl = document.getElementById("theme-switch");
-        if (themeSwitchEl) themeSwitchEl.addEventListener("click", function(event) {
-            document.body.classList.add("switched");
-            document.body.classList.toggle("dark");
-        });
+        if (themeSwitchEl && !themeSwitchEl.dataset._init) {
+            themeSwitchEl.addEventListener("click", function(event) {
+                document.body.classList.add("switched");
+                document.body.classList.toggle("dark");
+            });
+            themeSwitchEl.dataset._init = '1';
+        }
 
         // 章节导航功能已移除：原先自动生成的章节导航按钮已删除。
 
-        // 添加进度条功能
-        const progressBar = document.createElement('div');
-        progressBar.id = 'progress-bar';
-        document.body.appendChild(progressBar);
-
-        // Update progress bar based on the outer scroll container's scroll (throttled via rAF)
-        let scrollRaf = null;
-        function updateProgressBar() {
-            const scrollTop = outerScrollContainer.scrollTop;
-            const docHeight = outerScrollContainer.scrollHeight;
-            const winHeight = outerScrollContainer.clientHeight;
-            const denom = (docHeight - winHeight) || 1; // avoid division by zero
-            const scrollPercent = Math.max(0, Math.min(100, (scrollTop / denom) * 100));
-            progressBar.style.width = scrollPercent + '%';
-            scrollRaf = null;
-        }
-        outerScrollContainer.addEventListener('scroll', () => {
-            if (scrollRaf == null) scrollRaf = requestAnimationFrame(updateProgressBar);
-        }, { passive: true });
-
-        // If user interacts (wheel/touch/pointer), cancel programmatic scrolling to avoid fighting
-        ['wheel', 'touchstart', 'touchmove', 'pointerdown'].forEach(evt => {
-            outerScrollContainer.addEventListener(evt, () => {
-                userIsInteracting = true;
-                cancelScrollAnimation();
-                clearTimeout(interactionTimer);
-                interactionTimer = setTimeout(() => { userIsInteracting = false; }, 250);
-            }, { passive: true });
-        });
-
-        // 阅读模式、字体/行距控制与全屏功能
-        const controlsEl = document.getElementById('controls');
-        const toggleReadingMode = () => {
-            document.body.classList.toggle('reading-mode');
-        };
-
-        // Font and line-height controls (persisted)
-        let currentFontSize = parseInt(localStorage.getItem('fontSize') || '13', 10);
-        let currentLineHeight = parseFloat(localStorage.getItem('lineHeight') || '1.7');
-        function applyTypography() {
-            document.documentElement.style.setProperty('--content-font-size', currentFontSize+'pt');
-            document.documentElement.style.setProperty('--content-line-height', currentLineHeight);
-        }
-        applyTypography();
-
-        function changeFontSize(delta) {
-            currentFontSize = Math.max(10, Math.min(24, currentFontSize + delta));
-            localStorage.setItem('fontSize', currentFontSize);
-            applyTypography();
-        }
-        function changeLineHeight(delta) {
-            currentLineHeight = Math.max(1.1, Math.min(2.5, Math.round((currentLineHeight+delta)*100)/100));
-            localStorage.setItem('lineHeight', currentLineHeight);
-            applyTypography();
-        }
-
-        function toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
-                document.body.classList.add('fullscreen');
-            } else {
-                document.exitFullscreen && document.exitFullscreen();
-                document.body.classList.remove('fullscreen');
+        if (!controlsInitialized) {
+            // 添加进度条功能（仅首次）
+            let progressBar = document.getElementById('progress-bar');
+            if (!progressBar) {
+                progressBar = document.createElement('div');
+                progressBar.id = 'progress-bar';
+                document.body.appendChild(progressBar);
             }
-        }
 
-        if (controlsEl) {
-            const rmBtn = document.createElement('a');
-            rmBtn.href = '#';
-            rmBtn.id = 'reading-mode-toggle';
-            rmBtn.textContent = 'reading';
-            rmBtn.addEventListener('click', function(e){ e.preventDefault(); toggleReadingMode(); });
-            controlsEl.appendChild(rmBtn);
+            // Update progress bar based on the outer scroll container's scroll (throttled via rAF)
+            let scrollRaf = null;
+            function updateProgressBar() {
+                const scrollTop = outerScrollContainer.scrollTop;
+                const docHeight = outerScrollContainer.scrollHeight;
+                const winHeight = outerScrollContainer.clientHeight;
+                const denom = (docHeight - winHeight) || 1; // avoid division by zero
+                const scrollPercent = Math.max(0, Math.min(100, (scrollTop / denom) * 100));
+                progressBar.style.width = scrollPercent + '%';
+                scrollRaf = null;
+            }
+            outerScrollContainer.addEventListener('scroll', () => {
+                if (scrollRaf == null) scrollRaf = requestAnimationFrame(updateProgressBar);
+            }, { passive: true });
 
-            const decBtn = document.createElement('a');
-            decBtn.href = '#';
-            decBtn.id = 'font-decrease';
-            decBtn.textContent = 'A-';
-            decBtn.addEventListener('click', function(e){ e.preventDefault(); changeFontSize(-1); });
+            // If user interacts (wheel/touch/pointer), cancel programmatic scrolling to avoid fighting
+            ['wheel', 'touchstart', 'touchmove', 'pointerdown'].forEach(evt => {
+                outerScrollContainer.addEventListener(evt, () => {
+                    userIsInteracting = true;
+                    cancelScrollAnimation();
+                    clearTimeout(interactionTimer);
+                    interactionTimer = setTimeout(() => { userIsInteracting = false; }, 250);
+                }, { passive: true });
+            });
 
-            const incBtn = document.createElement('a');
-            incBtn.href = '#';
-            incBtn.id = 'font-increase';
-            incBtn.textContent = 'A+';
-            incBtn.addEventListener('click', function(e){ e.preventDefault(); changeFontSize(1); });
+                // 字体大小控制（仅首次添加控件，避免重复）
+            const controlsEl = document.getElementById('controls');
 
-            const lhDec = document.createElement('a');
-            lhDec.href = '#';
-            lhDec.id = 'lh-decrease';
-            lhDec.textContent = 'LH-';
-            lhDec.addEventListener('click', function(e){ e.preventDefault(); changeLineHeight(-0.1); });
+            // Font controls (persisted)
+            let currentFontSize = parseInt(localStorage.getItem('fontSize') || '13', 10);
+            let currentLineHeight = parseFloat(localStorage.getItem('lineHeight') || '1.7');
+            function applyTypography() {
+                document.documentElement.style.setProperty('--content-font-size', currentFontSize+'pt');
+                document.documentElement.style.setProperty('--content-line-height', currentLineHeight);
+            }
+            applyTypography();
 
-            const lhInc = document.createElement('a');
-            lhInc.href = '#';
-            lhInc.id = 'lh-increase';
-            lhInc.textContent = 'LH+';
-            lhInc.addEventListener('click', function(e){ e.preventDefault(); changeLineHeight(0.1); });
+            function changeFontSize(delta) {
+                currentFontSize = Math.max(10, Math.min(24, currentFontSize + delta));
+                localStorage.setItem('fontSize', currentFontSize);
+                applyTypography();
+            }
 
-            const fsBtn = document.createElement('a');
-            fsBtn.href = '#';
-            fsBtn.id = 'fullscreen-toggle';
-            fsBtn.textContent = 'fs';
-            fsBtn.addEventListener('click', function(e){ e.preventDefault(); toggleFullscreen(); });
+            if (controlsEl) {
+                const addIfMissing = (id, text, handler) => {
+                    if (!controlsEl.querySelector('#' + id)) {
+                        const el = document.createElement('a');
+                        el.href = '#';
+                        el.id = id;
+                        el.textContent = text;
+                        el.addEventListener('click', function(e){ e.preventDefault(); handler(); });
+                        controlsEl.appendChild(el);
+                    }
+                };
 
-            controlsEl.appendChild(decBtn);
-            controlsEl.appendChild(incBtn);
-            controlsEl.appendChild(lhDec);
-            controlsEl.appendChild(lhInc);
-            controlsEl.appendChild(fsBtn);
+                // Keep only font size controls; removed reading-mode, line-height and fullscreen controls as requested
+                addIfMissing('font-decrease', 'A-', () => changeFontSize(-1));
+                addIfMissing('font-increase', 'A+', () => changeFontSize(1));
+            }
+
+            controlsInitialized = true;
         }
 
         // 高亮功能已移除：将现有的 .quoted-emphasis 元素还原为普通文本

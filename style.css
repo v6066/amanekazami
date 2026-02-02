@@ -126,14 +126,14 @@ p {
     font-family: 'Microsoft YaHei', sans-serif; /* 使用黑体字体 */
     font-weight: bold; /* 设置字体加粗 */
     font-size: var(--content-font-size);
-    color: #6b6154; /* 深棕灰色，便于米黄色背景阅读 */
+    color: #FFF6E0; /* 暖米白，便于在橙色正文背景上阅读 */
     line-height: var(--content-line-height);
-}
+} 
 
 a {
     font-family: 'Microsoft YaHei', sans-serif; /* 使用黑体字体 */
     font-weight: bold; /* 设置字体加粗 */
-    color: #b97c2c;
+    color: #3a2a12; /* 深色，便于在橙色正文背景中可见 */
     font-family: sans-serif;
     text-decoration: none;
 }
@@ -147,8 +147,8 @@ a {
 }
 
 a:hover {
-    color: black;
-}
+    color: #F4E2CA; /* 悬停时强调色（进一步减淡） */
+} 
 
 @media screen and (prefers-reduced-motion: no-preference) {
     a {
@@ -223,10 +223,10 @@ img {
 .end {
     text-align: center;
     font-weight: bold;
-    color: black;
+    color: #3a2a12; /* 深色文字以便在橙色背景下可读 */
     padding-top: 20px;
     padding-bottom: 20px;
-}
+}  
 
 #controls {
     z-index: 4;
@@ -255,10 +255,7 @@ img {
         right: 0;
     }
 
-    /* Hide fullscreen toggle on mobile where Fullscreen API may be unavailable */
-    #fullscreen-toggle {
-        display: none !important;
-    }
+
 } 
 
 @media screen and (prefers-reduced-motion: no-preference) {
@@ -275,15 +272,24 @@ img {
     content: " | ";
 }
 
-@media screen and (max-width: 980px) {
-    #controls {
-        z-index: 2;
-        padding-top: 24px;
-        top: 0;
-        left: 0;
-        right: 0;
-    }
+/* 控件内的链接样式（已与正文背景互换） */
+#controls a {
+    display: inline-block;
+    padding: 6px 10px;
+    margin: 0 4px;
+    background: #FFF6E0;
+    color: #3a2a12;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 700;
+    transition: background-color 0.12s ease;
+    border: 1px solid #e7d8bf;
 }
+#controls a:hover {
+    background: #F1E4C6;
+}  
+
+
 
 /* 
   Dark Theme (Added in Inky 0.10.0)
@@ -291,32 +297,35 @@ img {
 */
 
 body.dark {
-    background: black;
-    color: white;
+    /* Softer dark background to reduce eye strain */
+    background: #0f1720; /* near-black deep blue-gray */
+    color: #E7E1D8; /* warm off-white for better reading */
 }
 
 .dark h2 {
-    color: #666;
+    color: #9a9a9a;
 }
 
 .dark .container {
-    background: black;
+    background: #111317; /* slightly lighter container for depth */
+    color: #E7E1D8;
 }
 
 .dark .written-in-ink {
-    background: black;
+    background: #0f1720;
+    color: #E7E1D8;
 }
 
 .dark a {
-    color: #cc8f1a;
-}
+    color: #F4E2CA;
+} 
 .dark .unclickable{
     color: #c4af87;
     cursor:not-allowed;
 }
 
 .dark a:hover {
-    color: white;
+    color: #FFE8C7; /* lighter warm highlight */
 }
 
 @media screen and (prefers-reduced-motion: no-preference) {
@@ -326,31 +335,24 @@ body.dark {
 }
 
 .dark strong {
-    color: white;
+    color: #FBF6EE; /* bright warm white for emphasis */
 }
 
 .dark #controls [disabled] {
-    color: #444;
+    color: #6b6b6b;
 }
 
 .dark .end {
-    color: white;
+    color: #F4E2CA; /* softened warm accent (further reduced) */
 }
 
 .dark #controls {
-    background: black;
+    background: #111317;
 }
 
-/* 自定义主题切换样式 */
-body.theme-dark {
-    background-color: #2c2c2c;
-    color: #dcdcdc;
-}
+/* 主题切换使用已统一到 `.dark`，移除未使用的 `theme-dark`/`theme-light` 样式。 */
 
-body.theme-light {
-    background-color: #f5deb3; /* 莎草纸色 */
-    color: #333333;
-}
+/* See: .dark rules further below */
 
 /* 保持标题颜色为最初的黑色，不受主题切换影响 */
 h1 {
@@ -361,33 +363,34 @@ h2 {
     color: #BBB; /* 浅灰色 */
 }
 
-/* 调整按钮样式以适配 Bootstrap */
+/* 调整按钮样式 — 已与正文背景互换 */
 .buttons a {
     display: inline-block;
     padding: 10px 20px;
     margin: 5px;
     text-decoration: none;
-    color: white;
-    background-color: #007BFF;
+    color: #3a2a12; /* 深棕色文字，便于在浅背景上阅读 */
+    background-color: #FFF6E0; /* 米黄色（之前为正文） */
     border-radius: 5px;
-    transition: background-color 0.3s;
+    transition: background-color 0.12s ease;
+    border: 1px solid #e7d8bf;
 }
 
 .buttons a:hover {
-    background-color: #0056b3;
+    background-color: #F1E4C6; /* 微暗的米色 */
 }
 
 .buttons a:active {
-    background-color: #003f7f;
-}
+    background-color: #E7D8BF; /* 深一点的按下色 */
+}  
 
 /* 内容容器样式 */
 #story {
-    background-color: #FFF6E0; /* 米黄色 */
-    border: 1px solid #e7d8bf;
+    background-color: #D08B2A; /* 暖橙金（与按钮互换） */
+    border: 1px solid #8C5F16; /* 深橙边框 */
     border-radius: 10px;
     padding: 20px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
 } 
 
 /* 字体优化 */
@@ -429,34 +432,6 @@ h1 {
     }
 }
 
-/* 添加阅读模式样式 (修改：不再包含章节导航) */
-body.reading-mode .buttons,
-body.reading-mode #controls,
-body.reading-mode .written-in-ink {
-    display: none;
-}
-
-body.reading-mode #story,
-body.reading-mode .container {
-    max-width: 900px;
-    margin: auto;
-    padding-top: 2em;
-}
-
-/* 在阅读模式下微调排版 */
-body.reading-mode {
-    --content-font-size: 14.5pt;
-    --content-line-height: 1.95;
-}
-
-/* 全屏阅读辅助（在使用 Fullscreen API 时效果更明显） */
-body.reading-mode.fullscreen .outerContainer {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    height: 100%; width: 100%;
-}
-
-
 /* 添加进度条样式 */
 #progress-bar {
     position: fixed;
@@ -464,9 +439,6 @@ body.reading-mode.fullscreen .outerContainer {
     left: 0;
     width: 0%;
     height: 5px;
-    background-color: #007BFF;
+    background-color: #FFF6E0; /* 米黄色（与按钮互换） */
     transition: width 0.3s;
-}
-
-/* 突出高亮样式已移除：相关文本现在按原始段落样式正常显示 */
-/* 如果需要再次启用高亮，请恢复或重新实现相应的样式和脚本。 */
+}  
