@@ -434,6 +434,57 @@
             document.body.classList.add("switched");
             document.body.classList.toggle("dark");
         });
+
+        // 动态生成章节导航
+        const chapterNav = document.createElement('div');
+        chapterNav.id = 'chapter-nav';
+        chapterNav.className = 'chapter-nav';
+
+        // 获取所有章节标题
+        const chapters = document.querySelectorAll('h2');
+        chapters.forEach((chapter, index) => {
+            const chapterLink = document.createElement('a');
+            chapterLink.href = `#chapter${index + 1}`;
+            chapterLink.textContent = `Chapter ${index + 1}`;
+            chapterNav.appendChild(chapterLink);
+
+            // 为章节标题添加 id
+            chapter.id = `chapter${index + 1}`;
+        });
+
+        document.body.appendChild(chapterNav);
+
+        // 添加进度条功能
+        const progressBar = document.createElement('div');
+        progressBar.id = 'progress-bar';
+        document.body.appendChild(progressBar);
+
+        window.addEventListener('scroll', () => {
+            const scrollTop = window.scrollY;
+            const docHeight = document.body.scrollHeight;
+            const winHeight = window.innerHeight;
+            const scrollPercent = (scrollTop / (docHeight - winHeight)) * 100;
+            progressBar.style.width = scrollPercent + '%';
+        });
+
+        // 添加阅读模式切换功能
+        const toggleReadingMode = () => {
+            document.body.classList.toggle('reading-mode');
+        };
+
+        const readingModeButton = document.createElement('button');
+        readingModeButton.textContent = 'Toggle Reading Mode';
+        readingModeButton.style.position = 'fixed';
+        readingModeButton.style.bottom = '10px';
+        readingModeButton.style.right = '10px';
+        readingModeButton.style.padding = '10px';
+        readingModeButton.style.backgroundColor = '#007BFF';
+        readingModeButton.style.color = 'white';
+        readingModeButton.style.border = 'none';
+        readingModeButton.style.borderRadius = '5px';
+        readingModeButton.style.cursor = 'pointer';
+        readingModeButton.addEventListener('click', toggleReadingMode);
+        document.body.appendChild(readingModeButton);
     }
 
 })(storyContent);
