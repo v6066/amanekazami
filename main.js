@@ -34,18 +34,6 @@
     var storyContainer = document.querySelector('#story');
     var outerScrollContainer = document.querySelector('.outerContainer');
 
-    // Scroll control helpers
-    var scrollAnimationId = null;
-    var userIsInteracting = false;
-    var interactionTimer = null;
-    var controlsInitialized = false; // ensure controls/progress are only initialized once
-    function cancelScrollAnimation() {
-        if (scrollAnimationId) {
-            cancelAnimationFrame(scrollAnimationId);
-            scrollAnimationId = null;
-        }
-    }
-
     // page features setup
     setupTheme(globalTagTheme);
     var hasSave = loadSavePoint();
@@ -304,30 +292,16 @@
         var start = outerScrollContainer.scrollTop;
 
         var dist = target - start;
-        // duration should scale with absolute distance but have a sensible min
-        var duration = Math.max(200, 300 + 300*Math.abs(dist)/100);
+        var duration = 300 + 300*dist/100;
         var startTime = null;
-        cancelScrollAnimation(); // cancel any previous animation
         function step(time) {
-            // stop animation if user is interacting (prevents fighting user scroll)
-            if (userIsInteracting) {
-                cancelAnimationFrame(scrollAnimationId);
-                scrollAnimationId = null;
-                return;
-            }
-
             if( startTime == null ) startTime = time;
             var t = (time-startTime) / duration;
-            t = Math.max(0, Math.min(1, t));
             var lerp = 3*t*t - 2*t*t*t; // ease in/out
             outerScrollContainer.scrollTo(0, (1.0-lerp)*start + lerp*target);
-            if( t < 1 ) {
-                scrollAnimationId = requestAnimationFrame(step);
-            } else {
-                scrollAnimationId = null;
-            }
+            if( t < 1 ) requestAnimationFrame(step);
         }
-        scrollAnimationId = requestAnimationFrame(step);
+        requestAnimationFrame(step);
     }
 
     // The Y coordinate of the bottom end of all the story content, used
@@ -417,146 +391,49 @@
     function setupButtons(hasSave) {
 
         let rewindEl = document.getElementById("rewind");
-        if (rewindEl && !rewindEl.dataset._init) {
-            rewindEl.addEventListener("click", function(event) {
-                removeAll("p");
-                removeAll("img");
-                setVisible(".header", false);
-                restart();
-            });
-            rewindEl.dataset._init = '1';
-        }
+        if (rewindEl) rewindEl.addEventListener("click", function(event) {
+            removeAll("p");
+            removeAll("img");
+            setVisible(".header", false);
+            restart();
+        });
 
         let saveEl = document.getElementById("save");
-        if (saveEl && !saveEl.dataset._init) {
-            saveEl.addEventListener("click", function(event) {
-                try {
-                    window.localStorage.setItem('save-state', savePoint);
-                    document.getElementById("reload").removeAttribute("disabled");
-                    window.localStorage.setItem('theme', document.body.classList.contains("dark") ? "dark" : "");
-                } catch (e) {
-                    console.warn("Couldn't save state");
-                }
+        if (saveEl) saveEl.addEventListener("click", function(event) {
+            try {
+                window.localStorage.setItem('save-state', savePoint);
+                document.getElementById("reload").removeAttribute("disabled");
+                window.localStorage.setItem('theme', document.body.classList.contains("dark") ? "dark" : "");
+            } catch (e) {
+                console.warn("Couldn't save state");
+            }
 
-            });
-            saveEl.dataset._init = '1';
-        }
+        });
 
         let reloadEl = document.getElementById("reload");
         if (!hasSave) {
             reloadEl.setAttribute("disabled", "disabled");
         }
-        if (reloadEl && !reloadEl.dataset._init) {
-            reloadEl.addEventListener("click", function(event) {
-                if (reloadEl.getAttribute("disabled"))
-                    return;
+        reloadEl.addEventListener("click", function(event) {
+            if (reloadEl.getAttribute("disabled"))
+                return;
 
-                removeAll("p");
-                removeAll("img");
-                try {
-                    let savedState = window.localStorage.getItem('save-state');
-                    if (savedState) story.state.LoadJson(savedState);
-                } catch (e) {
-                    console.debug("Couldn't load save state");
-                }
-                continueStory(true);
-            });
-            reloadEl.dataset._init = '1';
-        }
+            removeAll("p");
+            removeAll("img");
+            try {
+                let savedState = window.localStorage.getItem('save-state');
+                if (savedState) story.state.LoadJson(savedState);
+            } catch (e) {
+                console.debug("Couldn't load save state");
+            }
+            continueStory(true);
+        });
 
         let themeSwitchEl = document.getElementById("theme-switch");
-        if (themeSwitchEl && !themeSwitchEl.dataset._init) {
-            themeSwitchEl.addEventListener("click", function(event) {
-                document.body.classList.add("switched");
-                document.body.classList.toggle("dark");
-            });
-            themeSwitchEl.dataset._init = '1';
-        }
-
-        // 章节导航功能已移除：原先自动生成的章节导航按钮已删除。
-
-        if (!controlsInitialized) {
-            // 添加进度条功能（仅首次）
-            let progressBar = document.getElementById('progress-bar');
-            if (!progressBar) {
-                progressBar = document.createElement('div');
-                progressBar.id = 'progress-bar';
-                document.body.appendChild(progressBar);
-            }
-
-            // Update progress bar based on the outer scroll container's scroll (throttled via rAF)
-            let scrollRaf = null;
-            function updateProgressBar() {
-                const scrollTop = outerScrollContainer.scrollTop;
-                const docHeight = outerScrollContainer.scrollHeight;
-                const winHeight = outerScrollContainer.clientHeight;
-                const denom = (docHeight - winHeight) || 1; // avoid division by zero
-                const scrollPercent = Math.max(0, Math.min(100, (scrollTop / denom) * 100));
-                progressBar.style.width = scrollPercent + '%';
-                scrollRaf = null;
-            }
-            outerScrollContainer.addEventListener('scroll', () => {
-                if (scrollRaf == null) scrollRaf = requestAnimationFrame(updateProgressBar);
-            }, { passive: true });
-
-            // If user interacts (wheel/touch/pointer), cancel programmatic scrolling to avoid fighting
-            ['wheel', 'touchstart', 'touchmove', 'pointerdown'].forEach(evt => {
-                outerScrollContainer.addEventListener(evt, () => {
-                    userIsInteracting = true;
-                    cancelScrollAnimation();
-                    clearTimeout(interactionTimer);
-                    interactionTimer = setTimeout(() => { userIsInteracting = false; }, 250);
-                }, { passive: true });
-            });
-
-                // 字体大小控制（仅首次添加控件，避免重复）
-            const controlsEl = document.getElementById('controls');
-
-            // Font controls (persisted)
-            let currentFontSize = parseInt(localStorage.getItem('fontSize') || '13', 10);
-            let currentLineHeight = parseFloat(localStorage.getItem('lineHeight') || '1.7');
-            function applyTypography() {
-                document.documentElement.style.setProperty('--content-font-size', currentFontSize+'pt');
-                document.documentElement.style.setProperty('--content-line-height', currentLineHeight);
-            }
-            applyTypography();
-
-            function changeFontSize(delta) {
-                currentFontSize = Math.max(10, Math.min(24, currentFontSize + delta));
-                localStorage.setItem('fontSize', currentFontSize);
-                applyTypography();
-            }
-
-            if (controlsEl) {
-                const addIfMissing = (id, text, handler) => {
-                    if (!controlsEl.querySelector('#' + id)) {
-                        const el = document.createElement('a');
-                        el.href = '#';
-                        el.id = id;
-                        el.textContent = text;
-                        el.addEventListener('click', function(e){ e.preventDefault(); handler(); });
-                        controlsEl.appendChild(el);
-                    }
-                };
-
-                // Keep only font size controls; removed reading-mode, line-height and fullscreen controls as requested
-                addIfMissing('font-decrease', 'A-', () => changeFontSize(-1));
-                addIfMissing('font-increase', 'A+', () => changeFontSize(1));
-            }
-
-            controlsInitialized = true;
-        }
-
-        // 高亮功能已移除：将现有的 .quoted-emphasis 元素还原为普通文本
-        function removeExistingHighlights() {
-            if (!storyContainer) return;
-            const spans = storyContainer.querySelectorAll('.quoted-emphasis');
-            spans.forEach(s => {
-                s.replaceWith(document.createTextNode(s.textContent));
-            });
-        }
-        // 立即清理页面上已存在的高亮元素，之后不再自动高亮新文本。
-        removeExistingHighlights();
+        if (themeSwitchEl) themeSwitchEl.addEventListener("click", function(event) {
+            document.body.classList.add("switched");
+            document.body.classList.toggle("dark");
+        });
     }
 
 })(storyContent);
